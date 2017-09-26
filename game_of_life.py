@@ -146,6 +146,69 @@ def find_neighbours_weave(board):
                  compiler = 'gcc')
     return neighbours
 
+def compute_neighbours_original(Z):
+    rows, cols = len(Z), len(Z[0])
+    N = np.zeros(np.shape(Z))
+    for x in range(rows):
+        for y in range(cols):
+            for ii in [-1,0,1]:
+                for jj in [-1,0,1]:
+                    if ii==0 and jj==0:
+                        continue
+                    else:
+                        N[x][y] += Z[(x+ii)%cols][(x+jj)%rows]
+    return N
+
+@jit
+def compute_neighbours_original_jit(Z):
+    rows, cols = len(Z), len(Z[0])
+    N = np.zeros(np.shape(Z))
+    for x in range(rows):
+        for y in range(cols):
+            for ii in [-1,0,1]:
+                for jj in [-1,0,1]:
+                    if ii==0 and jj==0:
+                        continue
+                    else:
+                        N[x][y] += Z[(x+ii)%cols][(x+jj)%rows]
+    return N
+
+@profile
+def iterate_original(Z):
+    Zprime = Z.copy()
+    rows, cols = len(Zprime), len(Zprime[0])
+    N = compute_neighbours_original(Zprime)
+    for x in range(rows):
+        for y in range(cols):
+            if Zprime[x][y] == 1:
+                if (N[x][y] < 2) or (N[x][y] > 3):
+                    Zprime[x][y] = 0
+            else:
+                if (N[x][y] == 3):
+                    Zprime[x][y] = 1
+
+    return Zprime
+
+@jit
+def iterate_original_jit(Z):
+    Zprime = Z.copy()
+    rows, cols = len(Zprime), len(Zprime[0])
+    N = compute_neighbours_original_jit(Zprime)
+    for x in range(rows):
+        for y in range(cols):
+            if Zprime[x][y] == 1:
+                if (N[x][y] < 2) or (N[x][y] > 3):
+                    Zprime[x][y] = 0
+            else:
+                if (N[x][y] == 3):
+                    Zprime[x][y] = 1
+
+    return Zprime
+
+@profile
+def iterate_original_jit_prof(Z):
+    return iterate_original_jit(Z)
+
 @profile
 def iterate(board):
     neighbours = find_neighbours(board)
@@ -154,20 +217,38 @@ def iterate(board):
     board[set_zero_idxs] = 0
     board[set_one_idxs] = 1
     return board
+
+@profile
+def iterate_weave(board):
+    neighbours = find_neighbours_weave(board)
+    set_zero_idxs = (board==1) & ((neighbours<2) | (neighbours>3))
+    set_one_idxs = (board!=1) & (neighbours==3)
+    board[set_zero_idxs] = 0
+    board[set_one_idxs] = 1
+    return board
+
+@profile
+def iterate_jit(board):
+    neighbours = find_neighbours_jit(board)
+    set_zero_idxs = (board==1) & ((neighbours<2) | (neighbours>3))
+    set_one_idxs = (board!=1) & (neighbours==3)
+    board[set_zero_idxs] = 0
+    board[set_one_idxs] = 1
+    return board
     
-def run(x,y,pattern_name,iterations):
+def run(x,y,pattern_name,iterations,iterate_func=iterate):
     if pattern_name is not None:
         assert pattern_name in PATTERNS, "Valid pattern names are {}".format(PATTERNS.keys())
         board = init((x,y),PATTERNS[pattern_name])
     else:
         board = init((x,y))
-    #to compile
-    find_neighbours(board)
+
+    find_neighbours_weave(board)
 
     images = []
     for _ in range(iterations):
         images.append([plt.imshow(board, interpolation = 'nearest', cmap='binary')])
-        board = iterate(board)
+        board = iterate_func(board)
     images.append([plt.imshow(board, interpolation = 'nearest', cmap='binary')])
     return images
 
@@ -176,6 +257,12 @@ def animate(images,interval):
     ani = animation.ArtistAnimation(fig, images, interval=interval, blit=True, repeat=False)
     plt.show()
 
+def precompile_funcs():
+    board = np.zeros([10,10],dtype='int32')
+    find_neighbours_weave(board)
+    find_neighbours_jit(board)
+    compute_neighbours_original_jit(board)
+    iterate_original_jit(board)
 
 if __name__ == "__main__":
     from argparse import ArgumentParser
@@ -188,6 +275,11 @@ if __name__ == "__main__":
     parser.add_argument("-d","--delay",help="Interval between frames in the animation [lower is faster]",type=int,default=50)
     parser.add_argument("-s","--display",help="Display animation",action="store_true")
     args = parser.parse_args()
-    images = run(args.nrows, args.ncols, args.pattern, args.nits)
+    precompile_funcs()
+    images = run(args.nrows, args.ncols, args.pattern, args.nits, iterate_original_jit_prof)
+    images = run(args.nrows, args.ncols, args.pattern, args.nits, iterate_original)
+    images = run(args.nrows, args.ncols, args.pattern, args.nits, iterate_jit)
+    images = run(args.nrows, args.ncols, args.pattern, args.nits, iterate)
+    images = run(args.nrows, args.ncols, args.pattern, args.nits, iterate_weave)
     if args.display:
         animate(images, args.delay)
