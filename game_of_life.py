@@ -74,7 +74,6 @@ PATTERNS["pulsar"] = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]
 
-
 def init(size, pattern=None):
     assert len(size) == 2, "size parameter must be a 2-tuple"
     if pattern is None:
@@ -82,7 +81,7 @@ def init(size, pattern=None):
     else:
         pattern = np.asarray(pattern)
         board = np.zeros(size,dtype='int32')
-        assert board.shape[0] > pattern.shape[0], "pattern has more rows than board" 
+        assert board.shape[0] > pattern.shape[0], "pattern has more rows than board"
         assert board.shape[1] > pattern.shape[1], "pattern has more columns than board"
         row_margin = (board.shape[0] - pattern.shape[0])/2
         col_margin = (board.shape[1] - pattern.shape[1])/2
@@ -94,7 +93,7 @@ def find_neighbours(board):
     steps = [-1,0,1]
     for a in steps:
         for b in steps:
-            if (a,b) != (0,0): 
+            if (a,b) != (0,0):
                 neighbours += np.roll(np.roll(board,a,axis=0),b,axis=1)
     return neighbours
 
@@ -126,8 +125,8 @@ def find_neighbours_weave(board):
                         neighbours(ii,jj) += board((ii+kk)%ny,(jj+ll)%nx);
                     }
                 }
-            } 
-            else 
+            }
+            else
             {
                for (int kk=-1; kk<=1; ++kk)
                 {
@@ -137,7 +136,7 @@ def find_neighbours_weave(board):
                             neighbours(ii,jj) += board((ii+kk),(jj+ll));
                     }
                 }
-            }  
+            }
         }
     }
     """
@@ -235,7 +234,7 @@ def iterate_jit(board):
     board[set_zero_idxs] = 0
     board[set_one_idxs] = 1
     return board
-    
+
 def run(x,y,pattern_name,iterations,iterate_func=iterate):
     if pattern_name is not None:
         assert pattern_name in PATTERNS, "Valid pattern names are {}".format(PATTERNS.keys())
@@ -255,7 +254,8 @@ def run(x,y,pattern_name,iterations,iterate_func=iterate):
 def animate(images,interval):
     fig = plt.gcf()
     ani = animation.ArtistAnimation(fig, images, interval=interval, blit=True, repeat=False)
-    plt.show()
+    return ani
+
 
 def precompile_funcs():
     board = np.zeros([10,10],dtype='int32')
@@ -276,10 +276,10 @@ if __name__ == "__main__":
     parser.add_argument("-s","--display",help="Display animation",action="store_true")
     args = parser.parse_args()
     precompile_funcs()
-    images = run(args.nrows, args.ncols, args.pattern, args.nits, iterate_original_jit_prof)
-    images = run(args.nrows, args.ncols, args.pattern, args.nits, iterate_original)
-    images = run(args.nrows, args.ncols, args.pattern, args.nits, iterate_jit)
-    images = run(args.nrows, args.ncols, args.pattern, args.nits, iterate)
+    #images = run(args.nrows, args.ncols, args.pattern, args.nits, iterate_original_jit_prof)
+    #images = run(args.nrows, args.ncols, args.pattern, args.nits, iterate_original)
+    #images = run(args.nrows, args.ncols, args.pattern, args.nits, iterate_jit)
+    #images = run(args.nrows, args.ncols, args.pattern, args.nits, iterate)
     images = run(args.nrows, args.ncols, args.pattern, args.nits, iterate_weave)
     if args.display:
         animate(images, args.delay)
